@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import sys
+import zlib
 from pathlib import Path
 
 import numpy as np
@@ -27,7 +28,15 @@ import main  # noqa: E402
 # (.model, .dimension, .embed(list[str]) -> np.ndarray), але без мережі.
 # ══════════════════════════════════════════════════════════════════
 class HashingEmbedder:
-    """Детерміновані вектори: кожне слово потрапляє у свій «кошик»."""
+    """
+    Детерміновані вектори: кожне слово потрапляє у свій «кошик».
+
+    Хеш рахуємо через zlib.crc32, а НЕ вбудованим hash(): хеш рядків у Python
+    рандомізується на кожен процес (PYTHONHASHSEED), тож із hash() цей тест
+    падав приблизно раз на кілька запусків — слова час від часу колідували
+    в одному кошику. Фейк, який поводиться по-різному між прогонами, гірший
+    за відсутність фейка.
+    """
 
     model = "fake-hashing"
 
@@ -43,7 +52,7 @@ class HashingEmbedder:
         for text in texts:
             vector = np.zeros(self.dim, dtype="float32")
             for word in text.lower().split():
-                vector[hash(word) % self.dim] += 1.0
+                vector[zlib.crc32(word.encode("utf-8")) % self.dim] += 1.0
             rows.append(vector)
         return main.l2_normalize(np.vstack(rows))
 
