@@ -1,13 +1,12 @@
 # Autonomous AI Agent with Long-Term Memory
 
-**[UA]** Репозиторій до **Лабораторної роботи №1** курсу «Прикладний штучний інтелект
-та MLOps процесу розробки програмного забезпечення» (Лекція 4 — агенти на smolagents).
+**[UA]** Репозиторій до **Лабораторної роботи №1**.
 Тут інтерактивний AI-асистент із довготривалою пам'яттю за архітектурою RAG:
 `smolagents` + векторний індекс `faiss` + локальна LLM і локальні ембединги через `Ollama`.
 Жодних API-ключів і жодної відправки даних назовні.
 
-**[EN]** Reference implementation for **Lab 1** of the course *Applied AI and MLOps in
-Software Development*. An interactive AI assistant with long-term RAG memory:
+**[EN]** Reference implementation for **Lab 1**.
+An interactive AI assistant with long-term RAG memory:
 `smolagents` + the `faiss` vector index + a local LLM and local embeddings served by
 `Ollama`. No API keys, nothing leaves the machine.
 
