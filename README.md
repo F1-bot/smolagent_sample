@@ -1,102 +1,269 @@
 # Autonomous AI Agent with Long-Term Memory
 
-**[UA]** Цей репозиторій містить код для лабораторної роботи з розробки інтерактивного AI-асистента з довготривалою пам'яттю на базі архітектури RAG (Retrieval-Augmented Generation). Агент використовує `smol-agents`, векторну базу даних `faiss` та локальну LLM через `Ollama`.
+**[UA]** Репозиторій до **Лабораторної роботи №1** курсу «Прикладний штучний інтелект
+та MLOps процесу розробки програмного забезпечення» (Лекція 4 — агенти на smolagents).
+Тут інтерактивний AI-асистент із довготривалою пам'яттю за архітектурою RAG:
+`smolagents` + векторний індекс `faiss` + локальна LLM і локальні ембединги через `Ollama`.
+Жодних API-ключів і жодної відправки даних назовні.
 
-**[EN]** This repository contains the code for a lab project on developing an interactive AI assistant with long-term memory based on the RAG (Retrieval-Augmented Generation) architecture. The agent utilizes `smol-agents`, the `faiss` vector database, and a local LLM via `Ollama`.
+**[EN]** Reference implementation for **Lab 1** of the course *Applied AI and MLOps in
+Software Development*. An interactive AI assistant with long-term RAG memory:
+`smolagents` + the `faiss` vector index + a local LLM and local embeddings served by
+`Ollama`. No API keys, nothing leaves the machine.
 
-## 🚀 Key Features
+---
 
-**Long-Term Memory**
+## Що робить агент
 
-Implements RAG to overcome the limited context window of LLMs, enabling the agent to recall information from previous conversations.
-**Dynamic Tool Use**
+| Можливість | Як саме |
+|---|---|
+| **Довготривала пам'ять** | факти живуть поза вікном контексту — у векторному індексі `faiss`; у промпт підмішуються лише релевантні |
+| **Активне керування пам'яттю** | агент сам вирішує, що зберегти (`save_fact_to_memory`) і коли відповісти з пам'яті (`answer_from_context`) |
+| **Виконання коду як дія** | `CodeAgent` пише Python-фрагмент і виконує його — один фрагмент може викликати кілька інструментів |
+| **Багатомовні ембединги** | `bge-m3` через Ollama: 1024 виміри, українську розуміє |
+| **Поріг релевантності** | спогади з косинусною близькістю нижче `MEMORY_MIN_SCORE` у промпт не потрапляють |
+| **Локальна LLM** | `qwen3:8b` через Ollama; приватно й офлайн |
 
-The agent can dynamically choose from a set of predefined tools to perform tasks like text analysis, calculations, or data manipulation.
-**Active Memory Management**
+---
 
-The agent can autonomously decide which facts are important to save for future reference.
-**Prompt Engineering**
+## Технології
 
-Behavior is controlled through a detailed system prompt using few-shot examples and XML-like tags for robust interaction.
-**Local LLM Integration**
+- **`smolagents 1.26`** — фреймворк агента (`CodeAgent`, `@tool`).
+- **`Ollama 0.32`** — локальний сервер моделей: і LLM (`qwen3:8b`), і ембединги (`bge-m3`).
+- **`faiss-cpu`** — векторний індекс (`IndexFlatIP` + нормовані вектори = косинусний пошук).
+- **`LiteLLM`** — адаптер між smolagents і Ollama.
+- **Python 3.10+**.
 
-Runs with local language models via Ollama, ensuring privacy and offline capabilities.
+> **Чого тут навмисно немає:** `sentence-transformers` і `torch`. Минулорічна версія
+> рахувала ембединги моделлю `all-MiniLM-L6-v2` — це ~2 ГБ завантаження на кожного
+> студента заради **англомовної** моделі, тоді як демо зберігає в пам'ять українські
+> факти («Перевернуте слово "Кіт"»). Ollama вже стоїть у вас для LLM — беремо ембединги
+> з нього ж, через `POST /api/embed`.
 
-## 🛠️ Technical Architecture
+---
 
-The project is built on the following core components:
+## Встановлення
 
-- **`smol-agents`** – A lightweight library for creating and managing AI agents.
-- **`Ollama`** – For running large language models (like Llama 3) locally.
-- **`SentenceTransformers`** – Used to generate semantic embeddings for text.
-- **`faiss`** – A library from Facebook AI for efficient similarity search on dense vectors, used here as the vector database.
-- **`Python`** – The core programming language.
+### 1. Ollama
 
-## ⚙️ Setup & Installation
-
-Follow these steps to set up and run the project.
-
-### 1. Install Ollama
-Visit the [official Ollama website](https://ollama.com/) and download the installer for your operating system. Follow the installation instructions. Ollama will run as a background service.
-
-### 2. Download a Language Model
-Open your terminal and run the following command to download the Llama 3 8B model.
+Завантажте з [ollama.com](https://ollama.com/) і встановіть. Далі — **вдома**, бо разом
+це ~6 ГБ:
 
 ```bash
-ollama pull llama3:8b
+ollama pull qwen3:8b      # модель агента (~5 ГБ)
+ollama pull bge-m3        # модель ембедингів (~1.2 ГБ)
 ```
 
-*Note: You can use any other model available on Ollama.*
+Слабкий GPU (менше 8 ГБ VRAM)? Візьміть `ollama pull qwen3:4b` і пропишіть
+`AGENT_MODEL=qwen3:4b` у `.env`.
 
-### 3. Set Up Python Environment and Install Dependencies
-It is highly recommended to use a virtual environment.
+### 2. Python-середовище
 
 ```bash
-# Create a virtual environment
 python -m venv .venv
 
-# Activate the environment
-# Windows
-# .venv\Scripts\activate
-# macOS/Linux
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+# Linux / macOS
 # source .venv/bin/activate
 
-# Install the required libraries
-pip install "smolagents[litellm]" sentence-transformers faiss-cpu numpy
+pip install -r requirements.txt
 ```
 
-## ▶️ Usage Guide
-
-1. Save the provided code as `main.py`.
-2. Ensure your virtual environment is activated.
-3. Run the script from your terminal:
+### 3. Налаштування (необов'язково)
 
 ```bash
-python main.py
+copy .env.example .env    # Windows
+# cp .env.example .env    # Linux / macOS
 ```
-On the first run, `sentence-transformers` will download the `all-MiniLM-L6-v2` model. After initialization, you will see a prompt to enter your task.
 
-- Type your task and press Enter.
-- To start a new chat and clear the agent's memory, type `/new`.
-- To exit the program, type `exit`.
+Без `.env` усе працює на значеннях за замовчуванням.
 
-### Example Interaction:
+---
+
+## Запуск
+
+```bash
+python main.py            # демо-сценарій із 4 кроків (режим за замовчуванням, ~40 c)
+python main.py --chat     # інтерактивний діалог
+python main.py --verbose  # показати повні кроки агента
+python main.py --model qwen3:4b --num-ctx 4096   # слабкий GPU
+python main.py --help     # усі прапорці
+pytest -q                 # 51 тест інструментів, БЕЗ виклику моделі (~1 c)
 ```
---- Інтерактивний режим з Активною RAG-пам'яттю ---
-Щоб почати новий чат, введіть '/new'. Щоб вийти, введіть 'exit'.
 
-> Введіть ваше завдання: Count the words in 'the quick brown fox' and remember it.
+За замовчуванням скрипт **не** входить в `input()`-цикл: він проганяє сценарій і
+завершується. Це навмисно — цикл вішає і демонстрацію на парі, і CI.
+Інтерактив — за прапорцем `--chat`; виходить по `exit`, `/new` чистить пам'ять,
+`Ctrl+C`, `Ctrl+D` і кінець файлу на stdin обробляються коректно.
 
-... (Agent processing) ...
+### Як виглядає демо
 
-✅ Фінальний результат від агента: I counted 4 words and saved this fact to memory.
-
-> Введіть ваше завдання: what was the sentence I asked you to analyze?
-
-... (Agent processing with RAG) ...
-
-✅ Фінальний результат від агента: Based on my memory, the sentence you asked me to analyze was 'the quick brown fox'.
 ```
+[1/4] > Порахуй, скільки слів у фразі 'the quick brown fox', і запам'ятай результат.
+   [memory] релевантних спогадів немає
+   [tool] count_words('the quick brown fox')
+   [memory] збережено #1: Fact about 'word count of 'the quick brown fox'': '4'
+   [time] 5.1 c
+    ← У фразі 'the quick brown fox' 4 слова. Я це запам'ятав.
+
+[2/4] > Переверни слово 'Кіт' і запам'ятай, що вийшло.
+   [tool] reverse_text('Кіт')
+   [memory] збережено #2: Fact about 'reversed word of 'Кіт'': 'тіК'
+    ← Перевернене слово 'Кіт' - тіК. Я це запам'ятав.
+
+[3/4] > Яке слово я просив тебе перевернути і що з нього вийшло?
+   [memory] знайдено (cos=0.50): Fact about 'reversed word of 'Кіт'': 'тіК'
+   [tool] answer_from_context('Ви просили перевернути слово 'Кіт'...')
+    ← Ви просили перевернути слово 'Кіт' і з нього вийшло 'тіК'.
+
+[4/4] > Скільки слів було у фразі, яку я просив порахувати?
+   [memory] знайдено (cos=0.53): Fact about 'word count of 'the quick brown fox'': '4'
+    ← У фразі 'the quick brown fox' було 4 слова.
+```
+
+Ходи 3 і 4 — і є вся суть роботи: історія кроків між ходами скидається
+(`agent.run(..., reset=True)`), тож відповісти правильно агент може **лише**
+діставши факт із векторної пам'яті.
+
+---
+
+## Як воно влаштоване
+
+```
+запит користувача
+      │
+      ├─► MemoryManager.retrieve_relevant_memory()
+      │        bge-m3 → вектор → faiss IndexFlatIP → відсів за порогом
+      │
+      ├─► промпт = "## Memory\n<знайдені факти>\n\n## Current task\n<запит>"
+      │
+      └─► CodeAgent (qwen3:8b) пише Python-фрагмент і виконує його
+               ├─ count_words / reverse_text        — рахують
+               ├─ save_fact_to_memory               — пише у faiss
+               ├─ answer_from_context               — відповідає з пам'яті
+               └─ final_answer                      — завершує хід
+```
+
+### Три деталі підключення до Ollama, які не очевидні
+
+```python
+LiteLLMModel(
+    model_id="ollama_chat/qwen3:8b",   # 1
+    api_base="http://localhost:11434",
+    num_ctx=8192,                      # 2
+    reasoning_effort="none",           # 3
+)
+```
+
+1. **`ollama_chat/`, а не `ollama/`.** Префікс `ollama/` у LiteLLM веде на застарілий
+   completion-ендпоінт `/api/generate`; `ollama_chat/` — на `/api/chat` з правильним
+   chat-шаблоном і підтримкою tool calling.
+2. **`num_ctx=8192` — це про VRAM.** Без нього Ollama бере повне вікно моделі:
+   для `qwen3:8b` це 40960 токенів і ~11 ГБ замість ~6.3 ГБ. Перевіряється `ollama ps`.
+3. **`reasoning_effort="none"`** → LiteLLM надсилає Ollama `{"think": false}`.
+   `qwen3` — гібридна reasoning-модель, і без цього прапорця вона пише довгу
+   `<think>`-трасу перед кожним кроком: ~47 c замість ~17 c на той самий результат.
+
+> Модель **не** `llama3:8b`. Це модель 2024 року, і за `GET /api/tags` вона навіть не
+> заявляє capability `tools`.
+
+### Чому промпт саме такий
+
+`instructions` у `main.py` підбиралися вимірюванням, а не на смак. Демо-сценарій
+проганявся багато разів, рахувалися два останні ходи — чи агент дістав правильний
+факт із пам'яті (2 перевірки на прогін), `qwen3:8b`:
+
+| Варіант промпта | Влучань | Прогонів |
+|---|:---:|:---:|
+| самі правила, без прикладів | 11/16 | 8 |
+| правила + «ти ЗОБОВ'ЯЗАНИЙ кликати `answer_from_context`» | 4/6 | 3 |
+| минулорічний XML-промпт із 5 прикладами (англійською) | 8/8 | 4 |
+| правила + 2 приклади українською | 15/20 | 10 |
+| **правила + 2 приклади + тег `<thought>`** | **20/20** | **10** |
+
+Що з цього варто винести:
+
+- **Приклади мають бути українською.** Саме правило «відповідай українською» не
+  працює: без прикладів лише 9 із 32 відповідей були українською, з прикладами — 80 з 80.
+- **Тег `<thought>` не викидаємо.** Він виглядав як спадщина `llama3`, але вимірювання
+  каже інше: без нього 5 разів із 20 агент повернув текст самого запитання замість
+  відповіді з пам'яті. Примусовий короткий план перед кодом тримає 8B-модель у сценарії.
+- **Наказ «ОБОВ'ЯЗКОВО клич інструмент» робить гірше.** Модель виконує букву наказу і
+  пхає в `answer_from_context` текст питання.
+- **П'ять few-shot прикладів — забагато.** Минулорічна версія змушувала модель
+  відповідати фразами з прикладів («I counted 4 words and saved this fact to memory»)
+  замість своїх. Лишилося два.
+- **`code_block_tags` передавати не треба:** `("<code>", "</code>")` — типове значення
+  у smolagents 1.26.
+
+### Безпека шляхів
+
+Ім'я файлу, яке склала LLM, — це **недовірений ввід**. Варіанти 6, 14 і 20 пишуть файли,
+тому в `main.py` є `safe_output_path()`: вона зрізає теки й літери диска, відкидає
+`..`, порожні імена й зарезервовані імена Windows (`CON`, `LPT1`, …) і гарантує, що
+запис відбудеться лише всередині `OUTPUT_DIR`. Використовуйте її у **своєму** варіанті:
+
+```python
+path = safe_output_path(filename)      # ValueError, якщо шлях підозрілий
+path.write_text(content, encoding="utf-8")
+```
+
+---
+
+## Тести
+
+```bash
+pytest -q        # 51 тест, ~1 c
+```
+
+`tests/test_tools.py` не викликає ані LLM, ані Ollama: ембедер підмінений фейковим.
+Покрито інструменти, `MemoryManager` (порожня пам'ять, `k > n`, `k ≤ 0`, поріг
+релевантності, `reset`), складання промпта, розбір аргументів і `safe_output_path()`
+разом із спробами вийти за межі теки. Саме такі тести мають стояти у CI агентного
+проєкту: модель у CI не ганяють — вона повільна й недетермінована.
+
+---
+
+## Траблшутинг
+
+| Симптом | Причина і що робити |
+|---|---|
+| `Ollama не відповідає на http://localhost:11434` | сервер не запущений. Windows/macOS — відкрити застосунок Ollama; Linux — `ollama serve` |
+| `Модель 'qwen3:8b' не знайдена в Ollama` | `ollama pull qwen3:8b` |
+| `Модель 'bge-m3:latest' не знайдена` | `ollama pull bge-m3` — без неї немає пам'яті взагалі |
+| `ModuleNotFoundError: faiss` | `pip install -r requirements.txt`; пакет називається `faiss-cpu`, а імпортується як `faiss` |
+| Агент «думає» дуже довго | не передано `reasoning_effort="none"`; або модель не влізла у VRAM — `ollama ps`, колонка `PROCESSOR` має бути `100% GPU` |
+| Не вистачає VRAM | `.env` → `AGENT_MODEL=qwen3:4b`, `NUM_CTX=4096` |
+| `UnicodeEncodeError` при `python main.py > out.log` | консоль у cp1251. `main.py` викликає `setup_console()` першим ділом; у власних скриптах зробіть так само або `chcp 65001` |
+| Кракозябри замість кирилиці | те саме: `setup_console()` або `chcp 65001` |
+| Агент відповідає англійською | ви прибрали українські приклади з `INSTRUCTIONS` — саме вони, а не правило №6, тримають мову відповіді |
+| Агент не знаходить збережений факт | подивіться рядок `[memory] знайдено (cos=…)`. Немає жодного — близькість нижча за `MEMORY_MIN_SCORE`; спробуйте `0.30` у `.env` |
+| У контекст лізуть сторонні факти | навпаки, підніміть `MEMORY_MIN_SCORE` до `0.50` |
+| `Forbidden function evaluation: 'get_fact' is not among the explicitly allowed tools` | модель вигадала неіснуючий інструмент. Це нормально: агент бачить помилку й виправляється наступним кроком (`max_steps=4`). Якщо повторюється — назвіть інструмент точніше в його docstring |
+| `InterpreterError: Import of json is not allowed` | пісочниця smolagents 1.26 типово дозволяє лише `collections, datetime, itertools, math, queue, random, re, stat, statistics, time, unicodedata`. Решту — через `CodeAgent(..., additional_authorized_imports=["json"])`, і тільки те, що справді потрібно |
+| Перший `/api/embed` довгий (~8 c) | Ollama вантажить `bge-m3` у пам'ять. Наступні — десятки мілісекунд |
+
+---
+
+## Індивідуальне завдання
+
+Базовий агент уміє чотири речі. Ваше завдання — **додати два власні інструменти
+за своїм варіантом** і виконати ключову вимогу до поведінки агента.
+
+Що має бути у здачі:
+
+1. `main.py` з двома новими `@tool`-функціями (англомовний docstring з `Args:` —
+   його читає модель) і оновленими `INSTRUCTIONS`.
+2. Ключова вимога варіанта виконується **стабільно**, а не один раз із п'яти.
+   Прогоніть свій сценарій щонайменше 5 разів і напишіть у звіті, скільки разів спрацювало.
+3. Демонстрація довготривалої пам'яті: факт, збережений на першому ході,
+   використовується на третьому-четвертому.
+4. Тести на ваші інструменти в `tests/test_tools.py` — **без виклику моделі**.
+5. Якщо ваш варіант пише файли — тільки через `safe_output_path()`.
+6. Короткий звіт: що змінили в промпті і чому, з вимірюваннями.
+
+---
 
 ## 📚 Individual Assignment Variants
 

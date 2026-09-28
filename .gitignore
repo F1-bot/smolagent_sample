@@ -1,0 +1,28 @@
+# Віртуальні середовища
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Секрети та локальні налаштування
+.env
+
+# Артефакти пам'яті та роботи агента
+output/
+memory_store/
+*.faiss
+*.index
+embeddings_cache.json
+out.log
+*.log
+
+# IDE / ОС
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
