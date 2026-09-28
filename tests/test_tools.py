@@ -112,6 +112,41 @@ def test_answer_from_context_returns_text_unchanged():
     assert main.answer_from_context(answer_text=answer) == answer
 
 
+# ── Захист від «ехо запиту» ───────────────────────────────────────
+# Приблизно в одному прогоні з двадцяти qwen3:8b передає в цей інструмент
+# текст самого запитання, і користувач отримує своє ж питання як відповідь.
+# Інструмент мусить упізнати це сам і повернути помилку — вона стає
+# Observation, за яким агент виправляється наступним кроком.
+@pytest.fixture
+def task_is_reverse_question(monkeypatch):
+    monkeypatch.setattr(
+        main, "_CURRENT_TASK",
+        "Яке слово я просив тебе перевернути і що з нього вийшло?")
+
+
+def test_answer_rejects_verbatim_echo_of_the_question(task_is_reverse_question):
+    echo = "Яке слово я просив тебе перевернути і що з нього вийшло?"
+    assert main.answer_from_context(answer_text=echo).startswith("ERROR")
+
+
+def test_answer_rejects_any_question_without_a_number(task_is_reverse_question):
+    assert main.answer_from_context(
+        answer_text="Скільки слів було у фразі, яку я просив порахувати?").startswith("ERROR")
+
+
+def test_answer_rejects_empty_string(task_is_reverse_question):
+    assert main.answer_from_context(answer_text="   ").startswith("ERROR")
+
+
+@pytest.mark.parametrize("good", [
+    "Ви просили перевернути слово 'Кіт', вийшло 'тіК'.",
+    "У фразі 'the quick brown fox' було 4 слова.",
+    "Чи пам'ятаю я? Так: збережено 4 слова.",  # питальний знак, але є цифра
+])
+def test_answer_lets_real_answers_through(task_is_reverse_question, good):
+    assert main.answer_from_context(answer_text=good) == good
+
+
 # ══════════════════════════════════════════════════════════════════
 # 2. MemoryManager
 # ══════════════════════════════════════════════════════════════════

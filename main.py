@@ -354,16 +354,46 @@ def save_fact_to_memory(fact_description: str, fact_content: str) -> str:
     return "Fact saved to long-term memory."
 
 
+# Поточний запит користувача — щоб інструмент нижче міг упізнати,
+# що модель передала йому питання замість відповіді.
+_CURRENT_TASK = ""
+
+
+def _looks_like_the_question(answer: str) -> bool:
+    """Чи є 'відповідь' насправді переказаним питанням."""
+    a = answer.strip().lower().rstrip("?!.")
+    q = _CURRENT_TASK.strip().lower().rstrip("?!.")
+    if not a:
+        return True
+    if a == q:
+        return True
+    # питальний рядок без жодної цифри й без лапок — майже напевно ехо запиту
+    if answer.strip().endswith("?") and not any(ch.isdigit() for ch in answer):
+        return True
+    # висока частка спільних слів із запитом і нічого свого
+    aw, qw = set(a.split()), set(q.split())
+    return bool(qw) and len(aw & qw) / max(len(aw), 1) > 0.8
+
+
 @tool
 def answer_from_context(answer_text: str) -> str:
     """
     Use this when the answer is already present in the Memory block and no
-    computation is needed. Returns the answer unchanged.
+    computation is needed. Pass the ANSWER itself, never the user's question.
 
     Args:
-        answer_text: The final answer for the user, in Ukrainian.
+        answer_text: The final answer for the user, in Ukrainian, stating the fact.
     """
     print(f"   [tool] answer_from_context({answer_text!r})")
+    # Валідація входу — це не педантизм. Приблизно в одному прогоні з двадцяти
+    # qwen3:8b передає сюди текст самого запитання, і користувач отримує
+    # своє ж питання як відповідь. Інструмент має ловити це сам: він єдиний,
+    # хто знає, як виглядає коректний виклик. Повернена помилка — це
+    # Observation, за яким агент виправляється на наступному кроці.
+    if _looks_like_the_question(answer_text):
+        return ("ERROR: you passed the question, not the answer. Read the Memory "
+                "block above, find the stored fact, and call this tool again with "
+                "the fact itself (in Ukrainian).")
     return answer_text
 
 
@@ -534,6 +564,8 @@ def build_task_with_memory(task: str, context: str) -> str:
 
 def run_turn(agent, memory: MemoryManager, task: str, k: int = 3) -> str:
     """Виконує один хід і повертає відповідь агента (або текст помилки)."""
+    global _CURRENT_TASK
+    _CURRENT_TASK = task  # щоб answer_from_context упізнав ехо запиту
     context = memory.retrieve_relevant_memory(task, k=k)
     started = time.time()
     try:
