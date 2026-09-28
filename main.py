@@ -310,7 +310,7 @@ def attach_memory(memory: MemoryManager | None) -> None:
 
 def get_memory() -> MemoryManager:
     if _MEMORY is None:
-        raise RuntimeError("Пам'ять не ініціалізована: викличте attach_memory() першим")
+        raise RuntimeError("Пам'ять не ініціалізована: див. attach_memory()")
     return _MEMORY
 
 
@@ -346,7 +346,7 @@ def save_fact_to_memory(fact_description: str, fact_content: str) -> str:
     compute a result the user may ask about again.
 
     Args:
-        fact_description: Short description of the fact, e.g. "user's favorite color".
+        fact_description: Short description, e.g. "user's favorite color".
         fact_content: The value of the fact, e.g. "blue".
     """
     record = f"Fact about '{fact_description}': '{fact_content}'"
@@ -535,7 +535,7 @@ def check_environment(model_name: str, embed_model: str) -> list[str]:
     except Exception as exc:
         return [
             f"Ollama не відповідає на {OLLAMA_BASE_URL} ({type(exc).__name__}).",
-            "   Windows/macOS — запустіть застосунок Ollama;  Linux — `ollama serve`",
+            "   Windows/macOS — відкрийте застосунок; Linux — `ollama serve`",
         ]
 
     problems: list[str] = []
